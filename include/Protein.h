@@ -2,24 +2,17 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
-#include <utility>
 
 #include "State.h"
 #include "Edit.h"
-#include "Protein.h"
 
 class SubChain;
 
-class SubChainTopo {
-
-public:
-    using EditList = std::vector<Edit>;
-    using EditDict = std::unordered_map<int, EditList>; // key = stateId
+class Protein {
 
 protected:
-    int num_sides_;
     int transition_dependancy_radius_;
-    std::vector<std::unique_ptr<Protein>> proteins_;
+    int width_;
 
     virtual double slideRate(
         const State& currentState,
@@ -54,7 +47,6 @@ protected:
         const Edit& edit,
         const std::vector<std::unique_ptr<SubChain>>& chain,
         const int nodeId
-
     ) const = 0;
 
     virtual double switchSideRate(
@@ -62,43 +54,18 @@ protected:
         const Edit& edit,
         const std::vector<std::unique_ptr<SubChain>>& chain,
         const int nodeId
-
     ) const = 0;
 
 public:
-    SubChainTopo(
-        int num_sides_val,
-        int transition_dependancy_radius_val,
-        std::vector<std::unique_ptr<Protein>> proteins = {}
-    )
-        : num_sides_(num_sides_val),
-          transition_dependancy_radius_(transition_dependancy_radius_val),
-          proteins_(std::move(proteins))
-    {}
+    Protein() = default;
 
-
-    virtual ~SubChainTopo() = default;
-
-    virtual int getNumSides() const {
-        return num_sides_;
-    }
-
-    virtual const EditDict& getPossibleEditsByState() const = 0;
-
-    const EditList& getPossibleEditsForState(int stateId) const {
-            const auto& dict = getPossibleEditsByState();
-            auto it = dict.find(stateId);
-            static const EditList empty{};
-            return (it == dict.end()) ? empty : it->second;
-        }
-
+    virtual ~Protein() = default;
 
     virtual double computeRate(
         const State& currentState,
         const Edit& edit,
         const std::vector<std::unique_ptr<SubChain>>& chain,
         const int nodeId
-
     ) const {
         double rate = 0.0;
 
@@ -133,7 +100,7 @@ public:
         return transition_dependancy_radius_;
     }
 
-    virtual int getNumStates() const {
-        return (2*num_sides_ + 1);
+    virtual int getWidth() const {
+        return width_;
     }
 };

@@ -17,13 +17,13 @@ double SubChain::computeSlidingRate(
     return 0.0;
 }
 
-Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<State>>& chain) {
+Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<SubChain>>& chain) {
     const auto& edits = getPossibleEditsForCurrentState();
     if (edits.empty()) {
         throw std::runtime_error("No possible edits for current state");
     }
 
-    const State& current = *chain.at(static_cast<size_t>(nodeId_));
+    const State& current = currentState;
 
     double cumulativeRate = 0.0;
     double rate = 0.0;
@@ -43,7 +43,7 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
     throw std::runtime_error("reached end of findNextEdit without selecting an edit, incorrect threshold?");
 }
 
-double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<State>>& chain) {
+double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& chain) {
     // currentStateID is your "stateId" index into the edit table
     auto it = editTable_.find(currentStateID);
     if (it == editTable_.end()) {
@@ -55,9 +55,7 @@ double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<State>>& cha
         return 0.0;
     }
 
-    // Current local state for this node is the State stored in the global chain at nodeId_
-    // (This matches the topo::computeRate signature and lets rates depend on neighbors.)
-    const State& current = *chain.at(static_cast<size_t>(nodeId_));
+    const State& current = currentState;
 
     double total = 0.0;
     for (const Edit& e : edits) {

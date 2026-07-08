@@ -89,10 +89,10 @@ public:
     const std::vector<double>& getSubChainExitRates() const;
     void debugSetSelectedSubChainIndex(int idx) { selectedSubChainIndex_ = idx; }
     void debugUpdateExitRates(int centerIndex) { updateExitRates(centerIndex); }
-    std::vector<std::unique_ptr<State>>& debugStates() { return currentStates_; }
+    std::vector<std::unique_ptr<SubChain>>& debugChain() { return currentChain_; }
 
     double getSpecificExitRate(int index){ 
-        return currentChain_[index]->getTotalExitRate(currentStates_);
+        return currentChain_[index]->getTotalExitRate(currentChain_);
     }
 
     void debugApplyEditToSubChain(int index, Edit& edit){
@@ -120,9 +120,6 @@ private:
 
     /// The current chain (ownership held by the MultiTFMarkovChain).
     std::vector<std::unique_ptr<SubChain>> currentChain_;
-
-    /// The current states of each sub-chain (ownership held by the MultiTFMarkovChain).
-    std::vector<std::unique_ptr<State>> currentStates_;
 
     /// The current simulation time.
     double currentTime_;

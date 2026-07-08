@@ -1,5 +1,6 @@
 // MultiTFMarkovChain.cpp
 #include "MultiTFMarkovChain.h"
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <fstream>
@@ -49,7 +50,7 @@ void MultiTFMarkovChain::initializeExitRates(){
     subChainExitRates_.reserve(length_);
     totalExitRate_ = 0.0;
     for(int i = 0; i < length_; ++i){
-        double rate = currentChain_[i]->getTotalExitRate(currentStates_);
+        double rate = currentChain_[i]->getTotalExitRate(currentChain_);
         subChainExitRates_.push_back(rate);
         totalExitRate_ += rate;
     }
@@ -61,7 +62,7 @@ void MultiTFMarkovChain::updateExitRates(int centerIndex){
 
     for(int i = start; i <= end; ++i){
         double oldRate = subChainExitRates_[i];
-        double newRate = currentChain_[i]->getTotalExitRate(currentStates_);
+        double newRate = currentChain_[i]->getTotalExitRate(currentChain_);
         subChainExitRates_[i] = newRate;
         totalExitRate_ += (newRate - oldRate);
     }
@@ -83,11 +84,9 @@ MultiTFMarkovChain::MultiTFMarkovChain(int length, const SubChainTopo& topo)
       totalExitRate_(0.0),
       rng_(std::random_device{}()) 
       {
-        currentStates_.reserve(length_);
         currentChain_.reserve(length_);
 
         for (int i = 0; i < length_; ++i) {
-            currentStates_.push_back(std::make_unique<State>());
             currentChain_.push_back(
                 std::make_unique<SubChain>(
                     topo_,
@@ -132,24 +131,21 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
         }
 
         // Find and apply the next edit
-        Edit nextEdit = currentChain_[selectedSubChainIndex_]->findNextEdit(threshold, currentStates_);
+        Edit nextEdit = currentChain_[selectedSubChainIndex_]->findNextEdit(threshold, currentChain_);
         if(nextEdit.type == EditType::SLIDE_LEFT || nextEdit.type == EditType::SLIDE_RIGHT){
             std::cout << "Selected edit: " << nextEdit.toString() << " on sub-chain " << selectedSubChainIndex_ << "\n";
             printCurrentStates();
         }
-        currentStates_[selectedSubChainIndex_]->changeState(nextEdit);
         currentChain_[selectedSubChainIndex_]->applyEdit(nextEdit);
 
         //CHECK THIS PART FOR SLIDING UPDATES
         if(nextEdit.type == EditType::SLIDE_LEFT) {
             slidToEdit.strandSide = nextEdit.strandSide;
-            currentStates_[selectedSubChainIndex_ - 1]->changeState(slidToEdit);
             currentChain_[selectedSubChainIndex_ - 1]->applyEdit(slidToEdit);
             updateExitRates(selectedSubChainIndex_ - 1);
         }
         else if(nextEdit.type == EditType::SLIDE_RIGHT) {
             slidToEdit.strandSide = nextEdit.strandSide;
-            currentStates_[selectedSubChainIndex_ + 1]->changeState(slidToEdit);
             currentChain_[selectedSubChainIndex_ + 1]->applyEdit(slidToEdit);
             updateExitRates(selectedSubChainIndex_ + 1);
         }
@@ -168,8 +164,8 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
 }
 
 void MultiTFMarkovChain::printCurrentStates() const{
-    for (const auto& statePtr : currentStates_) {
-        const State& state = *statePtr;
+    for (const auto& subChainPtr : currentChain_) {
+        const State& state = subChainPtr->getCurrentState();
         int stateID = state.getStateID(topo_.getNumSides());
         std::cout << stateID << ",";
     }
@@ -217,5 +213,4 @@ void MultiTFMarkovChain::writeToCSV(const std::string& filename, double runTime)
 
     out.close();
 }
-
 

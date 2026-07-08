@@ -1,4 +1,5 @@
 #include "SingleStrandTopo.h"
+#include "SubChain.h"
 
 // StateId encoding used here (works for any num_sides_):
 // 0                   => FREE
@@ -83,7 +84,7 @@ void SingleStrandTopo::buildPossibleEditsDict() {
 double SingleStrandTopo::slideRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const {
 
@@ -98,7 +99,7 @@ double SingleStrandTopo::slideRate(
     if (edit.type == EditType::SLIDE_RIGHT) {
        if (nodeId + 1 >= n) return 0.0;
 
-        if(chain[nodeId + 1]->free != 1) { // next site must be free
+        if(chain[nodeId + 1]->getCurrentState().free != 1) { // next site must be free
             return 0.0;
         }
         return sliding_rate_;
@@ -107,7 +108,7 @@ double SingleStrandTopo::slideRate(
     if (edit.type == EditType::SLIDE_LEFT) {
         if (nodeId - 1 < 0) return 0.0;
 
-        if(chain[nodeId - 1]->free != 1) { // previous site must be free
+        if(chain[nodeId - 1]->getCurrentState().free != 1) { // previous site must be free
             return 0.0;
         }
         return sliding_rate_;
@@ -119,7 +120,7 @@ double SingleStrandTopo::slideRate(
 double SingleStrandTopo::bindNsRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const{
     if (currentState.free == 0) {
@@ -131,7 +132,7 @@ double SingleStrandTopo::bindNsRate(
 double SingleStrandTopo::bindSRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const {
     if(currentState.ns == 0) {
@@ -143,7 +144,7 @@ double SingleStrandTopo::bindSRate(
 double SingleStrandTopo::unbindNsRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const {
     if(currentState.ns == 0) {
@@ -155,7 +156,7 @@ double SingleStrandTopo::unbindNsRate(
 double SingleStrandTopo::unbindSRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const {
     if(currentState.s == 0) {
@@ -167,7 +168,7 @@ double SingleStrandTopo::unbindSRate(
 double SingleStrandTopo::switchSideRate(
     const State& currentState,
     const Edit& edit,
-    const std::vector<std::unique_ptr<State>>& chain,
+    const std::vector<std::unique_ptr<SubChain>>& chain,
     const int nodeId
 ) const {
     return 0.0;

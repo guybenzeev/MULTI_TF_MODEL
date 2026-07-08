@@ -8,14 +8,13 @@
 int main(int argc, char* argv[]) {
     try {
         // Defaults
-        //int length = 100;
-        int length = 5;
-        double runTime = 1000000.0;
-        //double runTime = 50.0;
+        int length = 100;
+        double runTime = 100000.0;
 
         //std::string outFile = "data/events.csv";
         //std::string outFile = "data/mini_events.csv";
-        std::string outFile = "data/reduced_events.csv";
+       // std::string outFile = "data/reduced_events.csv";
+        std::string outFile = "data/test.csv";
 
 
 

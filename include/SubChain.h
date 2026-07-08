@@ -111,7 +111,7 @@ class SubChain {
      * @param threshold A random value in \f$[0, R_{\text{total}})\f$.
      * @return The State reached by executing the selected edit.
      */
-    virtual Edit findNextEdit(double threshold, const std::vector<std::unique_ptr<State>>& chain);
+    virtual Edit findNextEdit(double threshold, const std::vector<std::unique_ptr<SubChain>>& chain);
 
     /**
      * @brief Returns the total exit rate from the current state.
@@ -123,7 +123,7 @@ class SubChain {
      * @return The total exit rate \f$R_{\text{total}}\f$ from the current state.
      */
     virtual double getTotalExitRate(
-        const std::vector<std::unique_ptr<State>>& chain
+        const std::vector<std::unique_ptr<SubChain>>& chain
     );
 
     /**
