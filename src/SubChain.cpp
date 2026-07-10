@@ -50,6 +50,10 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
 }
 
 double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& chain) {
+    if(currentState.isOccupied()) {
+        return 0.0;
+    }
+    
     const auto& edits = getPossibleEditsForCurrentState();
     if (edits.empty()) {
         return 0.0;
@@ -69,7 +73,11 @@ double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& 
     return total;
 }
 
-void SubChain::applyEdit(Edit& edit) {
+void SubChain::applyEdit(Edit& edit, int proteinHeadIndex) {
+    proteinHead_ = proteinHeadIndex; // Reset protein head to the specified index
     currentState.changeState(edit); // Update internal State
     currentStateID = currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins());
+    if (nodeId_ != proteinHead_) {
+        currentState.occupy(); // Mark as occupied if not the head of the protein
+    }
 }

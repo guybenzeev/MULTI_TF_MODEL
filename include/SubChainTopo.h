@@ -69,4 +69,11 @@ public:
         return proteins_[static_cast<size_t>(nodeId)].get();
     }
 
+    virtual int getProteinWidth(int proteinId) const {
+        if (proteins_.empty()) {
+            return 1;
+        }
+        return proteins_[proteinId]->getWidth();
+    }
+
 };

@@ -21,12 +21,14 @@ struct State {
     StateType state;
     int strandSide;
     int protein;
+    bool occupied;
 
     State(StateType state_val = StateType::FREE, int strand_side_val = 0, int protein_val = 0)
-        : state(state_val), strandSide(strand_side_val), protein(protein_val)
+        : state(state_val), strandSide(strand_side_val), protein(protein_val), occupied(false)
     {}
 
     void changeState(const Edit& edit) {
+        occupied = false;  // Reset occupied status on state change
         switch(edit.type) {
             case EditType::BIND_NS:
                 bind_ns(edit.strandSide, edit.protein);
@@ -62,6 +64,14 @@ struct State {
 
     bool isBoundS() const {
         return state == StateType::BOUND_S;
+    }
+
+    bool isOccupied() const {
+        return occupied;
+    }
+
+    void occupy() {
+        occupied = true;
     }
 
     void unbind() {

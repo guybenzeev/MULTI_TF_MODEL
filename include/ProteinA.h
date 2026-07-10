@@ -26,7 +26,7 @@ protected:
 public:
 
     ProteinA()
-        : Protein(1, 1)
+        : Protein(1, 3)
     {}
 
     double computeRate(

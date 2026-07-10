@@ -39,6 +39,8 @@ class SubChain {
     /// Current state ID of this sub-chain.
     int currentStateID;
 
+    int proteinHead_;
+
     /// Possible transitions within the sub-chain.
     std::vector<Edit> possibleInternalEdits_;
 
@@ -85,6 +87,7 @@ class SubChain {
         : topo_(topo),
         numStates_(topo.getNumStates()),
         nodeId_(nodeId),
+        proteinHead_(nodeId),
         currentStateID(initialState)
     {currentState = State();}
 
@@ -129,8 +132,11 @@ class SubChain {
     *
     * @param edit The edit to apply.
     */
-    virtual void applyEdit(Edit& edit);
+    virtual void applyEdit(Edit& edit, int proteinHeadIndex);
 
+    void applyEdit(Edit& edit) {
+        applyEdit(edit, nodeId_);
+    }
     /**
      * @brief Get the effect radius for this sub-chain.
      *

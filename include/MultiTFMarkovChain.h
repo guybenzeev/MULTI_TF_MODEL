@@ -39,7 +39,7 @@ public:
     * This refreshes \c subChainExitRates and \c totalExitRate
     * to reflect the current configuration.
     */  
-    void updateExitRates(int centerIndex);
+    void updateExitRates(int editHeadIndex, int proteinWidth);
 
     /**
      * @brief Select which sub-chain will fire next.
@@ -88,7 +88,7 @@ public:
     double getTotalExitRate() const;
     const std::vector<double>& getSubChainExitRates() const;
     void debugSetSelectedSubChainIndex(int idx) { selectedSubChainIndex_ = idx; }
-    void debugUpdateExitRates(int centerIndex) { updateExitRates(centerIndex); }
+    void debugUpdateExitRates(int centerIndex, int proteinWidth) { updateExitRates(centerIndex, proteinWidth); }
     std::vector<std::unique_ptr<SubChain>>& debugChain() { return currentChain_; }
 
     double getSpecificExitRate(int index){ 
@@ -187,6 +187,7 @@ private:
     */
     void initializeExitRates();
 
+    void applyEdit(Edit& nextEdit);
 
 
 };

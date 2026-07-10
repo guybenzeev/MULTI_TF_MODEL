@@ -14,6 +14,12 @@ protected:
     int transition_dependency_radius_;
     int width_;
 
+    virtual bool checkForSpaceToBind(
+        const Edit& edit,
+        const std::vector<std::unique_ptr<SubChain>>& chain,
+        const int nodeId
+    ) const;
+
 public:
     Protein(int transition_dependency_radius = 0, int width = 1)
         : transition_dependency_radius_(transition_dependency_radius),
@@ -36,4 +42,6 @@ public:
     virtual int getWidth() const {
         return width_;
     }
+private:
+
 };

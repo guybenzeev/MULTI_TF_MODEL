@@ -72,22 +72,70 @@ void MultiTFMarkovChain::initializeExitRates(){
     }
 }
 
-void MultiTFMarkovChain::updateExitRates(int centerIndex){
-    for(int i = 0; i < length_; ++i){
-        int distance = (i > centerIndex) ? (i - centerIndex) : (centerIndex - i);
-        if (distance > currentChain_[i]->getRadius()) {
-            continue;
-        }
-
+void MultiTFMarkovChain::updateExitRates(int editHeadIndex, int proteinWidth) {
+    int bottom = (editHeadIndex - currentChain_[editHeadIndex]->getRadius() < 0) ? 0 : (editHeadIndex - currentChain_[editHeadIndex]->getRadius());
+    int top = (editHeadIndex + proteinWidth + currentChain_[editHeadIndex]->getRadius() > length_) ? length_ : (editHeadIndex + proteinWidth + currentChain_[editHeadIndex]->getRadius());
+    /*
+    for(int i = bottom; i < top; ++i){
         double oldRate = subChainExitRates_[i];
         double newRate = currentChain_[i]->getTotalExitRate(currentChain_);
         subChainExitRates_[i] = newRate;
         totalExitRate_ += (newRate - oldRate);
     }
+    */
+    for(int i = 0; i < currentChain_.size(); ++i){
+        double oldRate = subChainExitRates_[i];
+        double newRate = currentChain_[i]->getTotalExitRate(currentChain_);
+        subChainExitRates_[i] = newRate;
+        totalExitRate_ += (newRate - oldRate);
+    }
+
 }
 
+void MultiTFMarkovChain::applyEdit(Edit& nextEdit) {
+        Edit slidToEdit;
+        slidToEdit.type = EditType::BIND_NS;
+        int slidingProtein = currentChain_[selectedSubChainIndex_]->getCurrentState().protein;
+        std::cout << "STATE selected_subchain_before_apply="
+                  << currentChain_[selectedSubChainIndex_]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                  << ", sliding_protein=" << slidingProtein
+                  << "\n";
+        int width = topo_.getProteinWidth(nextEdit.protein - 1);
 
+        for(int i = 0; i < width; ++i) {
+            currentChain_[selectedSubChainIndex_ + i]->applyEdit(nextEdit, selectedSubChainIndex_);
+        }
 
+        //CHECK THIS PART FOR SLIDING UPDATES
+        if(nextEdit.type == EditType::SLIDE_LEFT) {
+            slidToEdit.strandSide = nextEdit.strandSide;
+            slidToEdit.protein = slidingProtein;
+            for(int i = 0; i < width; ++i) {
+                currentChain_[selectedSubChainIndex_ - 1 + i]->applyEdit(slidToEdit, selectedSubChainIndex_-1);
+            }
+            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ - 1)
+                      << ", destination_state="
+                      << currentChain_[selectedSubChainIndex_ - 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                      << "\n";
+            updateExitRates(selectedSubChainIndex_ - 1, width);
+        }
+        else if(nextEdit.type == EditType::SLIDE_RIGHT) {
+            slidToEdit.strandSide = nextEdit.strandSide;
+            slidToEdit.protein = slidingProtein;
+            for(int i = 0; i < width; ++i) {
+                currentChain_[selectedSubChainIndex_ + 1 + i]->applyEdit(slidToEdit, selectedSubChainIndex_+1);
+            }
+            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ + 1)
+                      << ", destination_state="
+                      << currentChain_[selectedSubChainIndex_ + 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                      << "\n";
+            updateExitRates(selectedSubChainIndex_ + 1, width);
+        }
+        if(nextEdit.type == EditType::SLIDE_LEFT || nextEdit.type == EditType::SLIDE_RIGHT){
+            std::cout << "STATE after_slide=";
+            printCurrentStates();
+        }
+}
 
 // ---------- Constructors / Destructor ----------
 
@@ -132,8 +180,7 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
     
     currentTime_ = 0;
     initializeExitRates();
-    Edit slidToEdit;
-    slidToEdit.type = EditType::BIND_NS;
+
     int step = 0;
 
     //Clear nextEdit?
@@ -176,6 +223,7 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
 
         // Find and apply the next edit
         Edit nextEdit = currentChain_[selectedSubChainIndex_]->findNextEdit(threshold, currentChain_);
+
         std::cout << "EDIT selected=" << nextEdit.toString()
                   << ", protein=" << nextEdit.protein
                   << "\n";
@@ -183,44 +231,11 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
             std::cout << "STATE before_slide=";
             printCurrentStates();
         }
-        int slidingProtein = currentChain_[selectedSubChainIndex_]->getCurrentState().protein;
-        std::cout << "STATE selected_subchain_before_apply="
-                  << currentChain_[selectedSubChainIndex_]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
-                  << ", sliding_protein=" << slidingProtein
-                  << "\n";
-        currentChain_[selectedSubChainIndex_]->applyEdit(nextEdit);
-        std::cout << "STATE selected_subchain_after_apply="
-                  << currentChain_[selectedSubChainIndex_]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
-                  << "\n";
 
-        //CHECK THIS PART FOR SLIDING UPDATES
-        if(nextEdit.type == EditType::SLIDE_LEFT) {
-            slidToEdit.strandSide = nextEdit.strandSide;
-            slidToEdit.protein = slidingProtein;
-            currentChain_[selectedSubChainIndex_ - 1]->applyEdit(slidToEdit);
-            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ - 1)
-                      << ", destination_state="
-                      << currentChain_[selectedSubChainIndex_ - 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
-                      << "\n";
-            updateExitRates(selectedSubChainIndex_ - 1);
-        }
-        else if(nextEdit.type == EditType::SLIDE_RIGHT) {
-            slidToEdit.strandSide = nextEdit.strandSide;
-            slidToEdit.protein = slidingProtein;
-            currentChain_[selectedSubChainIndex_ + 1]->applyEdit(slidToEdit);
-            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ + 1)
-                      << ", destination_state="
-                      << currentChain_[selectedSubChainIndex_ + 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
-                      << "\n";
-            updateExitRates(selectedSubChainIndex_ + 1);
-        }
-        if(nextEdit.type == EditType::SLIDE_LEFT || nextEdit.type == EditType::SLIDE_RIGHT){
-            std::cout << "STATE after_slide=";
-            printCurrentStates();
-        }
+        applyEdit(nextEdit);
 
         // Update exit rates
-        updateExitRates(selectedSubChainIndex_);
+        updateExitRates(selectedSubChainIndex_, topo_.getProteinWidth(nextEdit.protein - 1));
         std::cout << "RATES total_exit_rate_after_update=" << totalExitRate_ << "\n";
         std::cout << "RATES subchain_exit_rates_after_update=";
         for (double rate : subChainExitRates_) {
@@ -240,6 +255,11 @@ void MultiTFMarkovChain::printCurrentStates() const{
     for (const auto& subChainPtr : currentChain_) {
         const State& state = subChainPtr->getCurrentState();
         int stateID = state.getStateID(topo_.getNumSides(), topo_.getNumProteins());
+
+        if(state.isOccupied()) {
+            stateID *= -1; // Mark occupied states with a negative ID
+        }
+
         std::cout << stateID << ",";
     }
     std::cout << "\n";

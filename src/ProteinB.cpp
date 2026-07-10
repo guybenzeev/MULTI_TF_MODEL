@@ -14,14 +14,14 @@ double ProteinB::slideRate(
     }
 
     if (edit.type == EditType::SLIDE_RIGHT) {
-        if (nodeId + 1 >= n) {
+        if (nodeId + width_ >= n) {
             return 0.0;
         }
 
-        if (!chain[nodeId + 1]->getCurrentState().isFree()) {
+        if (!(chain[nodeId + width_]->getCurrentState().isFree())) {
             return 0.0;
         }
-
+        
         return sliding_rate_;
     }
 
@@ -30,7 +30,7 @@ double ProteinB::slideRate(
             return 0.0;
         }
 
-        if (!chain[nodeId - 1]->getCurrentState().isFree()) {
+        if (!(chain[nodeId - 1]->getCurrentState().isFree())) {
             return 0.0;
         }
 
@@ -52,6 +52,9 @@ double ProteinB::computeRate(
             return slideRate(currentState, edit, chain, nodeId);
 
         case EditType::BIND_NS:
+            if (!checkForSpaceToBind(edit, chain, nodeId)) {
+                return 0.0;
+            }
             return bind_ns_rate_;
 
         case EditType::BIND_S:
