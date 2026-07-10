@@ -1,10 +1,26 @@
 // MultiTFMarkovChain.cpp
 #include "MultiTFMarkovChain.h"
-#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <fstream>
 #include <iomanip>
+
+
+namespace {
+class CoutRedirect {
+public:
+    explicit CoutRedirect(std::ostream& target)
+        : oldBuffer_(std::cout.rdbuf(target.rdbuf()))
+    {}
+
+    ~CoutRedirect() {
+        std::cout.rdbuf(oldBuffer_);
+    }
+
+private:
+    std::streambuf* oldBuffer_;
+};
+}
 
 
 // ---------- Private helpers (stubs) ----------
@@ -57,10 +73,12 @@ void MultiTFMarkovChain::initializeExitRates(){
 }
 
 void MultiTFMarkovChain::updateExitRates(int centerIndex){
-    int start = std::max(0, centerIndex - effectRadius_);
-    int end = std::min(length_ - 1, centerIndex + effectRadius_);
+    for(int i = 0; i < length_; ++i){
+        int distance = (i > centerIndex) ? (i - centerIndex) : (centerIndex - i);
+        if (distance > currentChain_[i]->getRadius()) {
+            continue;
+        }
 
-    for(int i = start; i <= end; ++i){
         double oldRate = subChainExitRates_[i];
         double newRate = currentChain_[i]->getTotalExitRate(currentChain_);
         subChainExitRates_[i] = newRate;
@@ -79,7 +97,6 @@ MultiTFMarkovChain::MultiTFMarkovChain(int length, const SubChainTopo& topo)
       currentTime_(0),
       pastEvents_(),
       pastTimes_(),
-      effectRadius_(topo.getEffectRadius()),
       subChainExitRates_(),
       totalExitRate_(0.0),
       rng_(std::random_device{}()) 
@@ -104,6 +121,12 @@ MultiTFMarkovChain::~MultiTFMarkovChain() = default;
 // ---------- Public API ----------
 
 void MultiTFMarkovChain::runSimulation(double runTime) {
+    std::ofstream coutLog("data/multitf_cout.log");
+    if (!coutLog) {
+        throw std::runtime_error("Failed to open cout log file: data/multitf_cout.log");
+    }
+    CoutRedirect coutRedirect(coutLog);
+
     pastEvents_.clear();
     pastTimes_.clear();
     
@@ -111,62 +134,112 @@ void MultiTFMarkovChain::runSimulation(double runTime) {
     initializeExitRates();
     Edit slidToEdit;
     slidToEdit.type = EditType::BIND_NS;
+    int step = 0;
 
     //Clear nextEdit?
     while (currentTime_ < runTime) {
-        std::cout << "Total exit rate: " << totalExitRate_ << "\n";
+        std::cout << "\nSTEP " << step << "\n";
+        std::cout << "TIME before=" << currentTime_ << "\n";
+        std::cout << "RATES total_exit_rate=" << totalExitRate_ << "\n";
+        std::cout << "RATES subchain_exit_rates=";
+        for (double rate : subChainExitRates_) {
+            std::cout << rate << ",";
+        }
+        std::cout << "\n";
+        std::cout << "STATE before=";
         printCurrentStates();
-        double holdingTime = findHoldingTime(); // sample holding time
-        currentTime_ += holdingTime;
 
-        if (currentTime_ > runTime) break;
+        double holdingTime = findHoldingTime(); // sample holding time
+        std::cout << "TIME holding_time=" << holdingTime << "\n";
+        currentTime_ += holdingTime;
+        std::cout << "TIME after_holding=" << currentTime_ << "\n";
+
+        if (currentTime_ > runTime) {
+            std::cout << "STEP_RESULT exceeded_run_time runTime=" << runTime << "\n";
+            break;
+        }
 
         // Select which sub-chain will fire next
         std::uniform_real_distribution<double> dist(0.0, totalExitRate_);
         double threshold = dist(rng_);
+        double rawThreshold = threshold;
+        std::cout << "THRESHOLD raw=" << rawThreshold << "\n";
         selectedSubChainIndex_ = selectSubChain(threshold);
+        std::cout << "THRESHOLD local_after_subchain_selection=" << threshold << "\n";
 
         if (selectedSubChainIndex_ < 0) {
             throw std::runtime_error("selectSubChain failed (threshold out of range?)");
         }
+        std::cout << "SELECTED subchain_index=" << selectedSubChainIndex_
+                  << ", subchain_exit_rate=" << subChainExitRates_[selectedSubChainIndex_]
+                  << "\n";
 
         // Find and apply the next edit
         Edit nextEdit = currentChain_[selectedSubChainIndex_]->findNextEdit(threshold, currentChain_);
+        std::cout << "EDIT selected=" << nextEdit.toString()
+                  << ", protein=" << nextEdit.protein
+                  << "\n";
         if(nextEdit.type == EditType::SLIDE_LEFT || nextEdit.type == EditType::SLIDE_RIGHT){
-            std::cout << "Selected edit: " << nextEdit.toString() << " on sub-chain " << selectedSubChainIndex_ << "\n";
+            std::cout << "STATE before_slide=";
             printCurrentStates();
         }
+        int slidingProtein = currentChain_[selectedSubChainIndex_]->getCurrentState().protein;
+        std::cout << "STATE selected_subchain_before_apply="
+                  << currentChain_[selectedSubChainIndex_]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                  << ", sliding_protein=" << slidingProtein
+                  << "\n";
         currentChain_[selectedSubChainIndex_]->applyEdit(nextEdit);
+        std::cout << "STATE selected_subchain_after_apply="
+                  << currentChain_[selectedSubChainIndex_]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                  << "\n";
 
         //CHECK THIS PART FOR SLIDING UPDATES
         if(nextEdit.type == EditType::SLIDE_LEFT) {
             slidToEdit.strandSide = nextEdit.strandSide;
+            slidToEdit.protein = slidingProtein;
             currentChain_[selectedSubChainIndex_ - 1]->applyEdit(slidToEdit);
+            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ - 1)
+                      << ", destination_state="
+                      << currentChain_[selectedSubChainIndex_ - 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                      << "\n";
             updateExitRates(selectedSubChainIndex_ - 1);
         }
         else if(nextEdit.type == EditType::SLIDE_RIGHT) {
             slidToEdit.strandSide = nextEdit.strandSide;
+            slidToEdit.protein = slidingProtein;
             currentChain_[selectedSubChainIndex_ + 1]->applyEdit(slidToEdit);
+            std::cout << "SLIDE destination_index=" << (selectedSubChainIndex_ + 1)
+                      << ", destination_state="
+                      << currentChain_[selectedSubChainIndex_ + 1]->getCurrentState().getStateID(topo_.getNumSides(), topo_.getNumProteins())
+                      << "\n";
             updateExitRates(selectedSubChainIndex_ + 1);
         }
         if(nextEdit.type == EditType::SLIDE_LEFT || nextEdit.type == EditType::SLIDE_RIGHT){
-            std::cout << "after edit: " << selectedSubChainIndex_ << "\n";
+            std::cout << "STATE after_slide=";
             printCurrentStates();
         }
 
         // Update exit rates
         updateExitRates(selectedSubChainIndex_);
+        std::cout << "RATES total_exit_rate_after_update=" << totalExitRate_ << "\n";
+        std::cout << "RATES subchain_exit_rates_after_update=";
+        for (double rate : subChainExitRates_) {
+            std::cout << rate << ",";
+        }
+        std::cout << "\n";
 
         // Record event time + event
         pastTimes_.push_back(currentTime_);
         pastEvents_.push_back(PastEvent{selectedSubChainIndex_, nextEdit});
+        std::cout << "STEP_RESULT event_recorded_time=" << currentTime_ << "\n";
+        ++step;
     }
 }
 
 void MultiTFMarkovChain::printCurrentStates() const{
     for (const auto& subChainPtr : currentChain_) {
         const State& state = subChainPtr->getCurrentState();
-        int stateID = state.getStateID(topo_.getNumSides());
+        int stateID = state.getStateID(topo_.getNumSides(), topo_.getNumProteins());
         std::cout << stateID << ",";
     }
     std::cout << "\n";
@@ -212,5 +285,7 @@ void MultiTFMarkovChain::writeToCSV(const std::string& filename, double runTime)
     }
 
     out.close();
-}
 
+    std::cout << "Done. Wrote CSV to: " << filename << "\n";
+
+}

@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include "Edit.h"
 #include "State.h"
 #include "SubChainTopo.h"
@@ -24,11 +26,6 @@ class SubChain {
     private:
 
     const SubChainTopo& topo_;
-
-    const SubChainTopo::EditDict& editTable_;
-
-    /// Radius of effect for a TF change (how far an edit can influence neighboring sites).
-    const int effectRadius_;
 
     /// Number of possible states in this sub-chain.
     const int numStates_;
@@ -86,8 +83,6 @@ class SubChain {
             int nodeId,
             const int initialState)
         : topo_(topo),
-        editTable_(topo.getPossibleEditsByState()),
-        effectRadius_(topo.getEffectRadius()),
         numStates_(topo.getNumStates()),
         nodeId_(nodeId),
         currentStateID(initialState)
@@ -142,18 +137,20 @@ class SubChain {
      * @return The effect radius.
      */
     int getRadius() const {
-        return effectRadius_;
+        if (currentState.protein == 0) {
+            return 1;
+        }
+        const Protein* protein = topo_.getProteinForSubChain(currentState.protein-1);
+        return protein->getEffectRadius();
     }
 
     const SubChainTopo::EditDict& getEditTable() const {
-        return editTable_;
+        return topo_.getPossibleEditsByState();
     }
 
     // Access edits for current state
     const SubChainTopo::EditList& getPossibleEditsForCurrentState() const {
-        auto it = editTable_.find(currentStateID);
-        static const SubChainTopo::EditList empty{};
-        return (it == editTable_.end()) ? empty : it->second;
+        return topo_.getPossibleEditsForState(currentState);
     }
 
     int getCurrentStateID() const { return currentStateID; }

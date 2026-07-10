@@ -1,28 +1,35 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include <string>
 #include "Edit.h"
+#include <functional>
+#include <cstddef>
+
+enum class StateType {
+    FREE,
+    BOUND_NS,
+    BOUND_S
+};
 
 /**
- * @brief Represents a state in the Markov chain.
+ * @brief Represents the state of one sub-chain site.
  *
- * A State is identified by a human-readable name and a numeric ID.
+ * protein stores the index + 1 of the protein in SubChainTopo::proteins_.
+ * protein == 0 means no protein is bound.
  */
-
 struct State {
-    int free;
-    int ns;
-    int s;
+    StateType state;
+    int strandSide;
+    int protein;
 
-    State(int free_val = 1, int ns_val = 0, int s_val = 0)
-        : free(free_val), ns(ns_val), s(s_val)
+    State(StateType state_val = StateType::FREE, int strand_side_val = 0, int protein_val = 0)
+        : state(state_val), strandSide(strand_side_val), protein(protein_val)
     {}
 
-    void changeState(const Edit& edit){
-        switch(edit.type){
+    void changeState(const Edit& edit) {
+        switch(edit.type) {
             case EditType::BIND_NS:
-                bind_ns(edit.strandSide);
+                bind_ns(edit.strandSide, edit.protein);
                 break;
             case EditType::BIND_S:
                 bind_s();
@@ -42,83 +49,116 @@ struct State {
                 break;
             default:
                 break;
-    }
+        }
     }
 
+    bool isFree() const {
+        return state == StateType::FREE;
+    }
 
-    void unbind(){
-        if(free != 0 || ns == 0 || s != 0){
-            //TODO: implement error handling for incorrect state transition
+    bool isBoundNs() const {
+        return state == StateType::BOUND_NS;
+    }
+
+    bool isBoundS() const {
+        return state == StateType::BOUND_S;
+    }
+
+    void unbind() {
+        if (!isBoundNs()) {
             return;
         }
-        ns = 0;
-        free = 1;
+        state = StateType::FREE;
+        strandSide = 0;
+        protein = 0;
     }
 
-    void bind_ns(int side){
-        if(free == 0 || ns != 0 || s != 0){
-            //TODO: implement error handling for incorrect state transition
+    void bind_ns(int side, int protein_index) {
+        if (!isFree() || side == 0 || protein_index == 0) {
             return;
         }
-        free = 0;
-        ns = side;
+        state = StateType::BOUND_NS;
+        strandSide = side;
+        protein = protein_index;
     }
 
-    void bind_s(){
-        if(free != 0 || ns == 0 || s != 0){
-            //TODO: implement error handling for incorrect state transition
+    void bind_s() {
+        if (!isBoundNs()) {
             return;
         }
-        s = ns;
-        ns = 0;
+        state = StateType::BOUND_S;
     }
 
-    void unbind_s(){
-        if(s == 0 || free != 0 || ns != 0){
-            //TODO: implement error handling for incorrect state transition
+    void unbind_s() {
+        if (!isBoundS()) {
             return;
         }
-        ns = s;
-        s = 0;
+        state = StateType::BOUND_NS;
     }
 
-    void switch_side(int side){
-        if(ns == 0 || free != 0 || s != 0){
-            //TODO: implement error handling for incorrect state transition
+    void switch_side(int side) {
+        if (!isBoundNs() || side == 0) {
             return;
         }
-        ns = side;
+        strandSide = side;
     }
 
-    void slideFrom(){
-        if(s != 0 || free != 0 || ns == 0){
-            //TODO: implement error handling for incorrect state transition
+    void slideFrom() {
+        if (!isBoundNs()) {
             return;
         }
-        ns = 0;
-        free = 1;
+        state = StateType::FREE;
+        strandSide = 0;
+        protein = 0;
     }
 
-    void slideTo(int side){
-        bind_ns(side);
+    void slideTo(int side, int protein_index) {
+        bind_ns(side, protein_index);
     }
     
-    int getStateID(int num_sides) const{
-        if(free == 1 && ns == 0 && s == 0){
+    int getStateID(int num_sides, int num_proteins) const {
+        if (isFree()) {
             return 0;
         }
-        else if(free == 0 && ns != 0 && s == 0){
-            return ns;
-        }
-        else if(free == 0 && ns == 0 && s != 0){
-            return num_sides + s;
-        }
-        else{
+
+        if (protein <= 0 || protein > num_proteins ||
+            strandSide <= 0 || strandSide > num_sides) {
             return -1;
         }
+
+        int proteinIndex = protein - 1;
+        int sideIndex = strandSide - 1;
+
+        int perBindingType = num_sides * num_proteins;
+
+        if (isBoundNs()) {
+            return 1 + proteinIndex * num_sides + sideIndex;
+        }
+
+        if (isBoundS()) {
+            return 1 + perBindingType + proteinIndex * num_sides + sideIndex;
+        }
+
+        return -1;
     }
+
+    bool operator==(const State& other) const {
+        return state == other.state &&
+            strandSide == other.strandSide &&
+            protein == other.protein;
+    }
+
 };
 
 
+struct StateHash {
+    std::size_t operator()(const State& s) const {
+        std::size_t h1 = std::hash<int>{}(static_cast<int>(s.state));
+        std::size_t h2 = std::hash<int>{}(s.strandSide);
+        std::size_t h3 = std::hash<int>{}(s.protein);
+
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+};
 
 #endif

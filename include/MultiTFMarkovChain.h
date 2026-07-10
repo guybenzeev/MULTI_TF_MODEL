@@ -130,9 +130,6 @@ private:
     /// The times at which past events were visited (aligned with \c pastEvents).
     std::vector<double> pastTimes_;
 
-    /// Radius of effect for a TF change (how far an edit can influence neighboring sites).
-    const int effectRadius_;
-
     /// Exit rates for each sub-chain (per-configuration total rates).
     std::vector<double> subChainExitRates_;
 

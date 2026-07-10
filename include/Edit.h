@@ -5,9 +5,10 @@
 struct Edit {
     EditType type;     // what kind of edit (BIND_NS, SLIDE_RIGHT, etc.)
     int strandSide;    // which side of the strand (if applicable)
+    int protein;      // which protein is involved (if applicable)
 
     std::string toString() const {
-        return editTypeToString(type) + "(side=" + std::to_string(strandSide) + ")";
+        return editTypeToString(type) + "(side=" + std::to_string(strandSide) + ", protein=" + std::to_string(protein) + ")";
     }
 
     std::string typeAsString() const {

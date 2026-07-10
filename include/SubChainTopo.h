@@ -14,65 +14,20 @@ class SubChainTopo {
 
 public:
     using EditList = std::vector<Edit>;
-    using EditDict = std::unordered_map<int, EditList>; // key = stateId
+    using EditDict = std::unordered_map<State, EditList, StateHash>;
 
 protected:
     int num_sides_;
-    int transition_dependancy_radius_;
     std::vector<std::unique_ptr<Protein>> proteins_;
+    EditDict possibleEditsByState_;
 
-    virtual double slideRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-    
-    virtual double bindNsRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double bindSRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double unbindNsRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double unbindSRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-
-    ) const = 0;
-
-    virtual double switchSideRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-
-    ) const = 0;
 
 public:
     SubChainTopo(
         int num_sides_val,
-        int transition_dependancy_radius_val,
         std::vector<std::unique_ptr<Protein>> proteins = {}
     )
         : num_sides_(num_sides_val),
-          transition_dependancy_radius_(transition_dependancy_radius_val),
           proteins_(std::move(proteins))
     {}
 
@@ -82,58 +37,36 @@ public:
     virtual int getNumSides() const {
         return num_sides_;
     }
+    virtual int getNumProteins() const {
+        return proteins_.size();
+    }
+    virtual int getNumStates() const = 0;
 
-    virtual const EditDict& getPossibleEditsByState() const = 0;
+    virtual const EditDict& getPossibleEditsByState() const {
+        return possibleEditsByState_;
+    }
 
-    const EditList& getPossibleEditsForState(int stateId) const {
+    const EditList& getPossibleEditsForState(const State& state) const {
             const auto& dict = getPossibleEditsByState();
-            auto it = dict.find(stateId);
+            auto it = dict.find(state);
             static const EditList empty{};
             return (it == dict.end()) ? empty : it->second;
         }
 
 
+    
     virtual double computeRate(
         const State& currentState,
         const Edit& edit,
         const std::vector<std::unique_ptr<SubChain>>& chain,
         const int nodeId
+    ) const = 0;
 
-    ) const {
-        double rate = 0.0;
-
-        switch(edit.type) {
-            case EditType::SLIDE_RIGHT:
-            case EditType::SLIDE_LEFT:
-                rate = slideRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::BIND_NS:
-                rate = bindNsRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::BIND_S:
-                rate = bindSRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::UNBIND_NS:
-                rate = unbindNsRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::UNBIND_S:
-                rate = unbindSRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::SWITCH_SIDE:
-                rate = switchSideRate(currentState, edit, chain, nodeId);
-                break;
-            default:
-                break;
+    virtual const Protein* getProteinForSubChain(int nodeId) const {
+        if (nodeId < 0 || static_cast<size_t>(nodeId) >= proteins_.size()) {
+            return nullptr;
         }
-
-        return rate;
+        return proteins_[static_cast<size_t>(nodeId)].get();
     }
 
-    virtual int getEffectRadius() const {
-        return transition_dependancy_radius_;
-    }
-
-    virtual int getNumStates() const {
-        return (2*num_sides_ + 1);
-    }
 };

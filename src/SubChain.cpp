@@ -27,6 +27,11 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
 
     double cumulativeRate = 0.0;
     double rate = 0.0;
+    
+    std::cout << "selected index: " << nodeId_
+              << ", current State: "
+              << currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins())
+              << "\n";
 
 
     for (const Edit& e : edits) {
@@ -34,6 +39,7 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
         if (rate > 0.0) {
             cumulativeRate += rate;
         }
+        
         std::cout << "Edit type: " << e.toString() << ", rate: " << rate << ", cumulativeRate: " << cumulativeRate <<", Threshold: " << threshold << "\n";
 
         if (cumulativeRate >= threshold) {
@@ -44,13 +50,7 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
 }
 
 double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& chain) {
-    // currentStateID is your "stateId" index into the edit table
-    auto it = editTable_.find(currentStateID);
-    if (it == editTable_.end()) {
-        return 0.0;
-    }
-
-    const auto& edits = it->second;
+    const auto& edits = getPossibleEditsForCurrentState();
     if (edits.empty()) {
         return 0.0;
     }
@@ -71,5 +71,5 @@ double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& 
 
 void SubChain::applyEdit(Edit& edit) {
     currentState.changeState(edit); // Update internal State
-    currentStateID = currentState.getStateID(topo_.getNumSides());
+    currentStateID = currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins());
 }

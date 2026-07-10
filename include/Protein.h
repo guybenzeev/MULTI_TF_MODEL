@@ -11,53 +11,14 @@ class SubChain;
 class Protein {
 
 protected:
-    int transition_dependancy_radius_;
+    int transition_dependency_radius_;
     int width_;
 
-    virtual double slideRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-    
-    virtual double bindNsRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double bindSRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double unbindNsRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double unbindSRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
-    virtual double switchSideRate(
-        const State& currentState,
-        const Edit& edit,
-        const std::vector<std::unique_ptr<SubChain>>& chain,
-        const int nodeId
-    ) const = 0;
-
 public:
-    Protein() = default;
+    Protein(int transition_dependency_radius = 0, int width = 1)
+        : transition_dependency_radius_(transition_dependency_radius),
+          width_(width)
+    {}
 
     virtual ~Protein() = default;
 
@@ -66,38 +27,10 @@ public:
         const Edit& edit,
         const std::vector<std::unique_ptr<SubChain>>& chain,
         const int nodeId
-    ) const {
-        double rate = 0.0;
-
-        switch(edit.type) {
-            case EditType::SLIDE_RIGHT:
-            case EditType::SLIDE_LEFT:
-                rate = slideRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::BIND_NS:
-                rate = bindNsRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::BIND_S:
-                rate = bindSRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::UNBIND_NS:
-                rate = unbindNsRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::UNBIND_S:
-                rate = unbindSRate(currentState, edit, chain, nodeId);
-                break;
-            case EditType::SWITCH_SIDE:
-                rate = switchSideRate(currentState, edit, chain, nodeId);
-                break;
-            default:
-                break;
-        }
-
-        return rate;
-    }
+    ) const = 0;
 
     virtual int getEffectRadius() const {
-        return transition_dependancy_radius_;
+        return transition_dependency_radius_;
     }
 
     virtual int getWidth() const {
