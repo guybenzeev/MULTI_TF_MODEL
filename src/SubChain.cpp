@@ -28,10 +28,10 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
     double cumulativeRate = 0.0;
     double rate = 0.0;
     
-    std::cout << "selected index: " << nodeId_
-              << ", current State: "
-              << currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins())
-              << "\n";
+    //std::cout << "selected index: " << nodeId_
+    //          << ", current State: "
+    //          << currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins())
+    //          << "\n";
 
 
     for (const Edit& e : edits) {
@@ -40,7 +40,7 @@ Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<
             cumulativeRate += rate;
         }
         
-        std::cout << "Edit type: " << e.toString() << ", rate: " << rate << ", cumulativeRate: " << cumulativeRate <<", Threshold: " << threshold << "\n";
+        //std::cout << "Edit type: " << e.toString() << ", rate: " << rate << ", cumulativeRate: " << cumulativeRate <<", Threshold: " << threshold << "\n";
 
         if (cumulativeRate >= threshold) {
             return e;

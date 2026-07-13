@@ -20,6 +20,8 @@ protected:
     int num_sides_;
     std::vector<std::unique_ptr<Protein>> proteins_;
     EditDict possibleEditsByState_;
+    int largestProteinWidth_ = 1;
+    int largestRadius_ = 1;
 
 
 public:
@@ -29,7 +31,16 @@ public:
     )
         : num_sides_(num_sides_val),
           proteins_(std::move(proteins))
-    {}
+    {
+    for (const auto& protein : proteins_) {
+        if (protein->getWidth() > largestProteinWidth_) {
+            largestProteinWidth_ = protein->getWidth();
+        }
+        if (protein->getEffectRadius() > largestRadius_) {
+            largestRadius_ = protein->getEffectRadius();
+        }
+    }
+    }
 
 
     virtual ~SubChainTopo() = default;
@@ -40,6 +51,15 @@ public:
     virtual int getNumProteins() const {
         return proteins_.size();
     }
+
+    virtual int getLargestProteinWidth() const {
+        return largestProteinWidth_;
+    }
+
+    virtual int getLargestRadius() const {
+        return largestRadius_;
+    }
+
     virtual int getNumStates() const = 0;
 
     virtual const EditDict& getPossibleEditsByState() const {

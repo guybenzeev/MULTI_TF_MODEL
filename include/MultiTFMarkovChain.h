@@ -11,6 +11,7 @@
 #include "State.h"
 #include "SubChain.h"
 #include "SubChainTopo.h"
+#include "FenwickTree.h"
 
 class SubChain;  ///< Forward declaration of SubChain.
 
@@ -55,6 +56,8 @@ public:
      * @return Index of the selected \c SubChain.
      */
     int selectSubChain(double& threshold);
+
+    int selectSubChainFromTree(double& threshold);
 
     /**
     * @brief Construct a new MultiTFMarkovChain with a default initial state [all states free].
@@ -140,6 +143,10 @@ private:
     std::mt19937 rng_;
 
     int selectedSubChainIndex_;
+
+    double largestExitRate_ = 0.0;
+
+    FenwickTree ratesTree_ = FenwickTree(0);  ///< Fenwick tree for efficient cumulative rate queries.
 
 
     // ===================== PRIVATE METHODS =====================

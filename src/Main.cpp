@@ -12,13 +12,13 @@
 int main(int argc, char* argv[]) {
     try {
         // Defaults
-        int length = 50;
-        double runTime = 50.0;
+        int length = 6;
+        double runTime = 1000000.0;
 
         //std::string outFile = "data/events.csv";
         //std::string outFile = "data/mini_events.csv";
         //std::string outFile = "data/reduced_events.csv";
-        std::string outFile = "data/test_width_one_protein.csv";
+        std::string outFile = "data/two_proteins_small.csv";
 
         // Optional CLI args: ./sim [length] [runTime] [outFile]
         if (argc >= 2) length = std::stoi(argv[1]);
