@@ -2,21 +2,6 @@
 #include <stdexcept>
 #include <iostream>
 
-
-double SubChain::computeInternalRate(
-    int,
-    const std::vector<std::unique_ptr<SubChain>>&
-) {
-    return 0.0;
-}
-
-double SubChain::computeSlidingRate(
-    int,
-    const std::vector<std::unique_ptr<SubChain>>&
-) {
-    return 0.0;
-}
-
 Edit SubChain::findNextEdit(double threshold, const std::vector<std::unique_ptr<SubChain>>& chain) {
     const auto& edits = getPossibleEditsForCurrentState();
     if (edits.empty()) {
@@ -74,10 +59,8 @@ double SubChain::getTotalExitRate(const std::vector<std::unique_ptr<SubChain>>& 
 }
 
 void SubChain::applyEdit(Edit& edit, int proteinHeadIndex) {
-    proteinHead_ = proteinHeadIndex; // Reset protein head to the specified index
-    currentState.changeState(edit); // Update internal State
-    currentStateID = currentState.getStateID(topo_.getNumSides(), topo_.getNumProteins());
-    if (nodeId_ != proteinHead_) {
-        currentState.occupy(); // Mark as occupied if not the head of the protein
+    currentState.changeState(edit);
+    if (nodeId_ != proteinHeadIndex) {
+        currentState.occupy();
     }
 }

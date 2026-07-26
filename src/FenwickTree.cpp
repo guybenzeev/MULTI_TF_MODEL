@@ -25,12 +25,6 @@ double FenwickTree::prefixSum(int index) const {
     return sum;
 }
 
-double FenwickTree::totalSum() const {
-    return prefixSum(
-        static_cast<int>(tree_.size()) - 2
-    );
-}
-
 int FenwickTree::findIndex(double threshold) const {
     int index = 0;
     double accumulated = 0.0;

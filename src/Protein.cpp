@@ -2,7 +2,6 @@
 #include "SubChain.h"
 
 bool Protein::checkForSpaceToBind(
-    const Edit& edit,
     const std::vector<std::unique_ptr<SubChain>>& chain,
     int nodeId
 ) const {

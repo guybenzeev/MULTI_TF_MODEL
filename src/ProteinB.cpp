@@ -52,7 +52,7 @@ double ProteinB::computeRate(
             return slideRate(currentState, edit, chain, nodeId);
 
         case EditType::BIND_NS:
-            if (!checkForSpaceToBind(edit, chain, nodeId)) {
+            if (!checkForSpaceToBind(chain, nodeId)) {
                 return 0.0;
             }
             return bind_ns_rate_;

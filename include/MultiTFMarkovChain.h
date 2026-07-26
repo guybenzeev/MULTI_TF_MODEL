@@ -2,199 +2,133 @@
 
 #include <vector>
 #include <memory>
-#include <functional>
 #include <random>
 #include <string>
 
-
 #include "Edit.h"
-#include "State.h"
 #include "SubChain.h"
 #include "SubChainTopo.h"
 #include "FenwickTree.h"
 
-class SubChain;  ///< Forward declaration of SubChain.
+/**
+ * @file MultiTFMarkovChain.h
+ * @brief Declares the multi-protein continuous-time Markov-chain simulator.
+ */
 
 /**
  * @class MultiTFMarkovChain
- * @brief Multi–transcription-factor continuous-time Markov chain on a DNA strand.
+ * @brief Multi-protein continuous-time Markov chain on a DNA strand.
  *
- * This class models a Strand of DNA with multiple transcription factors (TFs).
- * At any time there is a current configuration (`currentState`), a history of 
- * previously visited configurations (`pastStates`)
- * and their visit times (`pastTimes`). Transitions between configurations are
- * driven by exit rates associated with each sub-chain and simulated using a
- * Gillespie-style algorithm.
+ * This class models a strand of DNA with multiple proteins by running
+ * trajectories through a continuous-time Markov chain (CTMC). It stores the
+ * current configuration, the applied edits, and their event times. A
+ * Gillespie-style algorithm selects events, while local rate updates and a
+ * Fenwick tree avoid rescanning the full rate vector after every edit.
+ *
+ * The referenced topology must outlive the chain.
  */
 class MultiTFMarkovChain {
-
 public:
-
-    struct PastEvent {
-        int index;
-        Edit edit;
-    };
-
     /**
-    * @brief Update exit rates for all sub-chains after a state change.
-    * This refreshes \c subChainExitRates and \c totalExitRate
-    * to reflect the current configuration.
-    */  
-    void updateExitRates(int editHeadIndex, int proteinWidth);
-
-    /**
-     * @brief Select which sub-chain will fire next.
-     *
-     * Given a threshold in the range \f$[0, \text{totalExitRate})\f$,
-     * this method walks through \c subChainExitRates and returns the
-     * first sub-chain whose cumulative rate exceeds the threshold.
-     * The returned pointer is non-owning; ownership is still managed
-     * by the \c MultiTFMarkovChain.
-     *
-     * @param threshold A uniform random value in \f$[0,\text{totalExitRate})\f$
-     *                  used to select the next sub-chain.
-     * @return Index of the selected \c SubChain.
+     * @brief Constructs a chain whose sites are initially free.
+     * @param length Number of sites in the modeled DNA strand.
+     * @param topo Topology defining candidate edits and transition rates.
      */
-    int selectSubChain(double& threshold);
-
-    int selectSubChainFromTree(double& threshold);
-
-    /**
-    * @brief Construct a new MultiTFMarkovChain with a default initial state [all states free].
-    *
-    * @param length      Length of the DNA strand being modeled.
-    * @param topo        Topology defining sub-chain structure and rates.
-    */
     MultiTFMarkovChain(int length, const SubChainTopo& topo);
 
-    /**
-    * @brief Destroy the MultiTFMarkovChain.
-    *
-    * Frees all owned \c SubChain instances and any associated resources.
-    */
+    /** @brief Releases all owned sub-chains. */
     ~MultiTFMarkovChain();
 
     /**
-    * @brief Run the CTMC simulation up to a runTime.
-    *
-    * Repeatedly calls \c updateChain() to generate events until the
-    * internal time reaches or exceeds \p maxTime, or until no further
-    * transitions are possible (e.g., \c totalExitRate becomes zero).
-    *
-    * @param  runTime simulation time to run to.
-    */
+     * @brief Runs a new stochastic trajectory up to a time limit.
+     *
+     * Existing event history and simulation time are reset before the run.
+     *
+     * @param runTime Simulation time limit.
+     * @throws std::runtime_error If no transition can be selected.
+     */
     void runSimulation(double runTime);
 
-    // DEBUGING METHODS 
-    void printCurrentStates() const;
-    void printExitRates();
-    double getTotalExitRate() const;
-    const std::vector<double>& getSubChainExitRates() const;
-    void debugSetSelectedSubChainIndex(int idx) { selectedSubChainIndex_ = idx; }
-    void debugUpdateExitRates(int centerIndex, int proteinWidth) { updateExitRates(centerIndex, proteinWidth); }
-    std::vector<std::unique_ptr<SubChain>>& debugChain() { return currentChain_; }
-
-    double getSpecificExitRate(int index){ 
-        return currentChain_[index]->getTotalExitRate(currentChain_);
-    }
-
-    void debugApplyEditToSubChain(int index, Edit& edit){
-        currentChain_[index]->applyEdit(edit);
-    }
-
-        /**
-    * @brief Write the history of past events to a CSV file.
-    *
-    * Each row in the CSV corresponds to a past event, with columns for
-    * the time of the event, the index of the sub-chain, and details of the edit.
-    *
-    * @param filename The path to the output CSV file.
-    * @param runTime The total simulation time.
-    */
+    /**
+     * @brief Writes the current trajectory history to CSV.
+     * @param filename Output path.
+     * @param runTime Requested simulation time, recorded as CSV metadata.
+     * @throws std::runtime_error If the output file cannot be opened.
+     */
     void writeToCSV(const std::string& filename, double runTime) const;
 
 private:
+    /**
+     * @struct PastEvent
+     * @brief Associates an applied edit with its zero-based strand position.
+     */
+    struct PastEvent {
+        int index; /**< Head-site index at which the edit fired. */
+        Edit edit; /**< Applied transition. */
+    };
 
-    /// The topology defining sub-chain structure and rates.
+    /** Non-owning topology reference. */
     const SubChainTopo& topo_;
 
-    /// Length of the DNA strand being modeled (in base pairs or sites).
+    /** Number of sites in the modeled strand. */
     int length_;
 
-    /// The current chain (ownership held by the MultiTFMarkovChain).
+    /** Owned local states in strand order. */
     std::vector<std::unique_ptr<SubChain>> currentChain_;
 
-    /// The current simulation time.
+    /** Current trajectory time. */
     double currentTime_;
 
-    /// The collection of past events visited, held as tuples of index and edit.
+    /** Applied events in chronological order. */
     std::vector<PastEvent> pastEvents_;
 
-    /// The times at which past events were visited (aligned with \c pastEvents).
+    /** Event times aligned by index with pastEvents_. */
     std::vector<double> pastTimes_;
 
-    /// Exit rates for each sub-chain (per-configuration total rates).
+    /** Total exit rate of each sub-chain. */
     std::vector<double> subChainExitRates_;
 
-    /// Total exit rate across all sub-chains (sum of \c subChainExitRates).
+    /** Sum of all values in subChainExitRates_. */
     double totalExitRate_;
 
-    /// Random number generator for stochastic sampling.
+    /** Random-number engine used for event and holding-time sampling. */
     std::mt19937 rng_;
 
+    /** Zero-based sub-chain selected for the current event. */
     int selectedSubChainIndex_;
 
-    double largestExitRate_ = 0.0;
-
-    FenwickTree ratesTree_ = FenwickTree(0);  ///< Fenwick tree for efficient cumulative rate queries.
-
-
-    // ===================== PRIVATE METHODS =====================
+    /** Cumulative-rate index used for logarithmic event selection. */
+    FenwickTree ratesTree_ = FenwickTree(0);
 
     /**
-     * @brief Sample the holding time until the next event.
-     *
-     * Uses the current \c totalExitRate to draw the time increment to the
-     * next state change, via an exponential distribution. The
-     * returned value is in the same time units as the rates.
-     *
-     * @return The holding time until the next transition.
+     * @brief Samples an exponentially distributed holding time.
+     * @return Time until the next transition.
+     * @throws std::runtime_error If the total exit rate is not positive.
      */
     double findHoldingTime();
 
-
-
     /**
-     * @brief Recompute possible edits and exit rates for all sub-chains.
-     *
-     * This updates the list of possible edits on each sub-chain, refreshes
-     * \c subChainExitRates, and recomputes \c totalExitRate accordingly.
-     *
-     * @return An integer status code (e.g., number of active sub-chains or 0 on success).
+     * @brief Selects a sub-chain from the cumulative rate tree.
+     * @param threshold Global cumulative threshold; converted to a local threshold.
+     * @return Zero-based selected index, or -1 when the threshold is out of range.
      */
-    int updatePossibleEdits();
+    int selectSubChainFromTree(double& threshold);
 
     /**
-     * @brief Apply the next event and update the global chain state.
-     *
-     * This function performs a single simulation step:
-     *   - samples a holding time,
-     *   - selects which sub-chain fires,
-     *   - applies the corresponding edit,
-     *   - records the new state in \c pastStates and \c pastTimes,
-     *   - and updates all dependent rates.
+     * @brief Initializes the per-site rates and cumulative-rate tree.
      */
-    void updateChain();
-
-    /**
-    * @brief Initialize exit rates for all sub-chains at the start of the simulation.
-    *
-    * This sets up \c subChainExitRates and \c totalExitRate based on the
-    * initial configuration of the chain.
-    */
     void initializeExitRates();
 
+    /**
+     * @brief Recomputes rates in the neighborhood affected by an edit.
+     * @param editHeadIndex Zero-based head index after the edit.
+     * @param proteinWidth Footprint of the edited protein.
+     */
+    void updateExitRates(int editHeadIndex, int proteinWidth);
+
+    /**
+     * @brief Applies an edit to every affected footprint site.
+     * @param nextEdit Selected edit.
+     */
     void applyEdit(Edit& nextEdit);
-
-
 };

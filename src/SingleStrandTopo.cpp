@@ -74,17 +74,6 @@ void SingleStrandTopo::buildPossibleEditsDict() {
     }
 }
 
-
-
-double SingleStrandTopo::switchSideRate(
-    const State& currentState,
-    const Edit& edit,
-    const std::vector<std::unique_ptr<SubChain>>& chain,
-    const int nodeId
-) {
-    return 0.0;
-}
-
 double SingleStrandTopo::computeRate(
         const State& currentState,
         const Edit& edit,
@@ -99,4 +88,3 @@ double SingleStrandTopo::computeRate(
         double rate = proteins_[edit.protein - 1]->computeRate(currentState, edit, chain, nodeId);
         return rate;
     }
-
